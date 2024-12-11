@@ -1,107 +1,133 @@
 # **Fine-Tuned Language Model with LoRA**
 
-Welcome to the repository for my fine-tuned language model using LoRA (Low-Rank Adaptation)! This project showcases how we can leverage parameter-efficient fine-tuning with LoRA to adapt a powerful base language model for specific use cases.
+Welcome to the repository for our fine-tuned language model using LoRA (Low-Rank Adaptation)! This project demonstrates how we can leverage parameter-efficient fine-tuning to adapt a powerful base language model for generating domain-specific questions. Instead of having the model answer the questions, this setup allows the user to respond with their own answers. 
 
-The fine-tuned model is deployed on Hugging Face Spaces, where you can interact with it directly. Try it out here: [**Launch the Model**](https://huggingface.co/spaces/Grandediw/Test).
+**Key Links:**
+- **Interactive Demo (Google Colab):** [Run the Inference Notebook](https://colab.research.google.com/github/Grandediw/Fine-Tuned-LLM/blob/main/Gradio_inference.ipynb)
 
 ---
 
 ## **Overview**
-This project fine-tunes the `unsloth/llama-3.2-3b-instruct-bnb-4bit` base model using LoRA. The adapter layers trained during fine-tuning are lightweight and focus on modifying specific parts of the base model to achieve the desired performance without retraining the entire model.
+
+This project fine-tunes the `unsloth/llama-3.2-3b-instruct-bnb-4bit` base model using LoRA to create a parameter-efficient, specialized language model. The focus of this fine-tuning is to have the model generate coherent, contextually relevant questions about a specific topic. The end-user can then provide their own answers to these questions, facilitating a more interactive and exploratory learning experience.
 
 ### **Key Features**
-- **Low-Rank Adaptation (LoRA)**: A parameter-efficient fine-tuning method that modifies select layers of the base model.
-- **Task-Specific Fine-Tuning**: The model is optimized for generating coherent, context-aware responses to user queries.
-- **Interactive Chat Application**: Deployed as a chat interface on Hugging Face Spaces for easy accessibility.
+- **Low-Rank Adaptation (LoRA)**: A parameter-efficient fine-tuning technique that modifies specific parts of the model.
+- **Topic-Specific Question Generation**: The model is trained to produce well-formed questions that users can answer themselves.
+- **Accessible Demo**: A Gradio-based web interface you can access to try out question generation in your browser.
 
 ---
 
 ## **How to Use**
-### **Try It Online**
-You can interact with the model directly in your browser via the Hugging Face Space:
-👉 **[Try the Model Here](https://huggingface.co/spaces/Grandediw/Test)**
 
-### **Use the Model in Your Code**
-You can integrate the model into your Python applications using the Hugging Face Transformers library.
+### **1. Run the Inference Notebook (Google Colab)**
+
+To interact with the model, follow these steps:
+
+1. **Open the Notebook:**
+   Click the link below to open the `Gradio_inference.ipynb` notebook in Google Colab:
+   👉 **[Run the Inference Notebook](https://colab.research.google.com/github/<your-username>/Fine-Tuned-LLM/blob/main/Gradio_inference.ipynb)**
+
+2. **Set Up the Environment:**
+   - Ensure you are signed into your Google account.
+   - Click on `Runtime` > `Run all` to execute all cells in the notebook.
+   - Follow any prompts to authorize access if necessary.
+
+3. **Launch the Interface:**
+   - After running the notebook, a Gradio interface will appear.
+   - Use the interface to generate questions on your chosen topic and provide your own answers.
+
+
+### **2. Integrate into Your Code**
+
+If you want to integrate the model into your own application to generate questions programmatically:
 
 ```python
-from transformers import AutoTokenizer, AutoModelForCausalLM
+!pip install unsloth
+!pip install transformers
+!pip install torch
 
-# Load the base model and LoRA weights
-tokenizer = AutoTokenizer.from_pretrained("unsloth/llama-3.2-3b-instruct-bnb-4bit", use_fast=False)
-model = AutoModelForCausalLM.from_pretrained("Grandediw/lora_model")
+from transformers import AutoModel, AutoTokenizer, AutoModelForCausalLM
+from unsloth import FastLanguageModel
+import torch
 
-# Generate responses
-inputs = tokenizer("What is the oldest building in Stockholm?", return_tensors="pt")
+max_seq_length = 2048  # Choose any! We auto support ROPE scaling internally!
+dtype = None  # None for auto detection. Float16 for Tesla T4, V100, bFloat16 for Ampere+
+
+model_name_or_path = "jacopoda/lora_model"
+
+model, tokenizer = FastLanguageModel.from_pretrained(
+    model_name=model_name_or_path,
+    max_seq_length=max_seq_length,
+    dtype=dtype,
+    load_in_4bit=True,
+    # token = "hf_...", #se il nostro modello non è public
+    # Use one if using gated models like meta-llama/Llama-2-7b-hf
+)
+
+# Example prompt
+prompt = "Generate a question about historical architecture for the user to answer."
+inputs = tokenizer(prompt, return_tensors="pt")
 outputs = model.generate(inputs["input_ids"], max_new_tokens=128, temperature=1.5)
-
-# Decode and print the result
 print(tokenizer.decode(outputs[0], skip_special_tokens=True))
 ```
 
 ---
 
 ## **How It Works**
+
 1. **Base Model**: 
-   The model starts with `unsloth/llama-3.2-3b-instruct-bnb-4bit`, a powerful and lightweight causal language model.
-   
+   We start with `unsloth/Llama-3.2-1B-Instruct`, a capable language model optimized for instruction-like tasks.
+
 2. **LoRA Fine-Tuning**: 
-   - LoRA modifies specific components of the base model (e.g., projection layers) as defined in the `adapter_config.json` file.
-   - This method is efficient, allowing us to fine-tune a large model with minimal compute resources.
+   We apply LoRA adapters to select projection layers (`down_proj`, `gate_proj`, `k_proj`, `o_proj`, `q_proj`, `v_proj`, `up_proj`) so that the model can be efficiently specialized to generate questions about a given topic, rather than general text generation or answer completion.
 
 3. **Deployment**:
-   - The model is deployed on Hugging Face Spaces using the `unsloth` library for fast and efficient inference.
-   - A Gradio-based chat interface is provided for user interaction.
+   The model is served via a Gradio interface, accessible at the provided link. Users can submit prompts asking the model to generate questions, then answer those questions themselves, turning the model into a tool for guided exploration of a subject.
 
 ---
 
 ## **Model Details**
+
 ### **Base Model**
-- **Name**: `unsloth/llama-3.2-3b-instruct-bnb-4bit`
+- **Name**: `unsloth/Llama-3.2-1B-Instruct`
 - **Task Type**: Causal Language Modeling (CAUSAL_LM)
-- **Quantization**: 4-bit quantization for faster inference.
+- **Quantization**: 4-bit for efficient inference.
 
 ### **LoRA Configuration**
-- **Adapter Configuration**: 
-  - `r`: 16
-  - `lora_alpha`: 16
-  - `lora_dropout`: 0
-- **Target Modules**:
-  - `down_proj`, `gate_proj`, `k_proj`, `o_proj`, `up_proj`, `v_proj`, `q_proj`
+- **r**: 16
+- **lora_alpha**: 16
+- **lora_dropout**: 0
+- **Target Modules**: `down_proj`, `gate_proj`, `k_proj`, `o_proj`, `up_proj`, `v_proj`, `q_proj`
 
 ---
 
 ## **Requirements**
-### **Dependencies**
-To reproduce this project locally, install the following dependencies:
-- `torch`
-- `transformers`
-- `peft`
-- `unsloth`
-- `gradio`
 
-Install them via pip:
+### **Dependencies**
 ```bash
 pip install torch transformers peft unsloth gradio
 ```
 
 ### **Environment**
-- **Hardware**: NVIDIA GPU with CUDA support is recommended for inference.
+- **Hardware**: NVIDIA GPU recommended for faster inference.
 - **Software**: Python 3.8+ and PyTorch 1.12+.
 
 ---
 
 ## **Try It Yourself**
-Interact with the model and see how it responds to your queries. Examples of tasks it can perform:
-- General Q&A
-- Context-aware dialogue
-- Instruction following
+- Prompt the model to generate a question about a topic of your choice.
+- Provide your own answer to explore the subject deeply and interactively.
 
-👉 **[Test the Model Here](https://huggingface.co/spaces/Grandediw/Test)**
+👉 **[Test the Model](https://9b7c23980211fb75b3.gradio.live/)**
 
 ---
 
 ## **Acknowledgments**
-Special thanks to:
-- **Hugging Face** for providing the platform for hosting the model and the fine-tuning tools.
-- **Unsloth Team** for their efficient implementations and base models.
+- **Hugging Face**: For providing the platform and libraries.
+- **Unsloth Team**: For their efficient models and tools.
+- **LoRA Researchers**: For developing parameter-efficient fine-tuning techniques.
+
+---
+
+**Happy experimenting with the question-generation model!**
